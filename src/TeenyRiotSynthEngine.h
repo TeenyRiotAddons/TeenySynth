@@ -28,6 +28,7 @@
 #define ENVELOPE3 3
 
 #define FS 20000.0                                              //-Sample rate (NOTE: must match tables.h)
+#define CPU_CLOCK 16500000.0
 
 #define SET(x,y) (x |=(1<<y))		        		//-Bit set/clear macros
 #define CLR(x,y) (x &= (~(1<<y)))       			// |
@@ -82,7 +83,7 @@ SIGNAL(TIMER1_COMPA_vect)
   //  Synthesizer/audio mixer
   //-------------------------------
 
-  OCR2A = OCR2B = 127 +
+  OCR0A = 127 +
     ((
   (((signed char)pgm_read_byte(wavs[0] + ((unsigned char *)&(PCW[0] += FTW[0]))[1]) * AMP[0]) >> 8) +
     (((signed char)pgm_read_byte(wavs[1] + ((unsigned char *)&(PCW[1] += FTW[1]))[1]) * AMP[1]) >> 8) +
@@ -95,7 +96,7 @@ SIGNAL(TIMER1_COMPA_vect)
   //************************************************
   //  FTW[divider] = PITCH[divider] + (int)   (((PITCH[divider]/64)*(EPCW[divider]/64)) /128)*MOD[divider];
   FTW[divider] = PITCH[divider] + (int)   (((PITCH[divider]>>6)*(EPCW[divider]>>6))/128)*MOD[divider];
-	tim++;
+    tim++;
 }
 
 class synth
@@ -114,18 +115,38 @@ public:
 
   void begin()
   {
-    output_mode=CHA;
-    TCCR1A = 0x00;                                  //-Start audio interrupt
-    TCCR1B = 0x09;
-    TCCR1C = 0x00;
-    OCR1A=16000000.0 / FS;			    //-Auto sample rate
-    SET(TIMSK1, OCIE1A);                            //-Start audio interrupt
-    sei();                                          //-+
+//    output_mode=CHA;
+//    TCCR1A = 0x00;                                  //-Start audio interrupt
+//    TCCR1B = 0x09;
+//    TCCR1C = 0x00;
+//    OCR1A=CPU_CLOCK / FS;			    //-Auto sample rate
+//    SET(TIMSK1, OCIE1A);                            //-Start audio interrupt
+//    sei();                                          //-+
 
-    TCCR2A = 0x83;                                  //-8 bit audio PWM
-    TCCR2B = 0x01;                                  // |
-    OCR2A = 127;                                    //-+
-    SET(DDRB, 3);				    //-PWM pin
+//    TCCR2A = 0x83;                                  //-8 bit audio PWM
+//    TCCR2B = 0x01;                                  // |
+//    OCR2A = 127;                                    //-+
+//    SET(DDRB, 3);				    //-PWM pin
+
+
+      TCCR1 |= _BV(CTC1); //clear timer on compare
+      TIMSK |= _BV(OCIE1A); //activate compare interruppt
+      TCNT1 = 0; //init count
+      TCCR1 |= _BV(CS10)|_BV(CS12); // prescale 16
+      OCR1C = (CPU_CLOCK/16.0)/FS;
+      SET(TIMSK, OCIE1A);                            //-Start audio interrupt
+      sei();                                          //-+
+
+      //+PWM SETUP
+      TCCR0A |= (1<<WGM00)|(1<<WGM01); //Fast pwm
+      //TCCR0A |= (1<<WGM00) ; //Phase correct pwm
+      TCCR0A |= (1<<COM0A1); //Clear OC0A/OC0B on Compare Match when up-counting.
+      TCCR0B |= (1<<CS00);//no prescale
+      //+END PWM
+
+      OCR0A = 127;
+      SET(DDRB, PB0); //-PWM pin
+
   }
 
   //*********************************************************************
@@ -134,39 +155,58 @@ public:
 
   void begin(unsigned char d)
   {
-    TCCR1A = 0x00;                                  //-Start audio interrupt
-    TCCR1B = 0x09;
-    TCCR1C = 0x00;
-    OCR1A=16000000.0 / FS;			    //-Auto sample rate
-    SET(TIMSK1, OCIE1A);                            //-Start audio interrupt
+//    TCCR1A = 0x00;                                  //-Start audio interrupt
+//    TCCR1B = 0x09;
+//    TCCR1C = 0x00;
+//    OCR1A=CPU_CLOCK / FS;			    //-Auto sample rate
+
+
+    TCCR1 |= _BV(CTC1); //clear timer on compare
+    TIMSK |= _BV(OCIE1A); //activate compare interruppt
+    TCNT1 = 0; //init count
+    TCCR1 |= _BV(CS10)|_BV(CS12); // prescale 16
+    OCR1C = (CPU_CLOCK/16.0)/FS;
+    SET(TIMSK, OCIE1A);                            //-Start audio interrupt
     sei();                                          //-+
 
     output_mode=d;
 
     switch(d)
     {
-    case DIFF:                                        //-Differntial signal on CHA and CHB pins (11,3)
-      TCCR2A = 0xB3;                                  //-8 bit audio PWM
-      TCCR2B = 0x01;                                  // |
-      OCR2A = OCR2B = 127;                            //-+
-      SET(DDRB, 3);				      //-PWM pin
-      SET(DDRD, 3);				      //-PWM pin
-      break;
+//    case DIFF:                                        //-Differntial signal on CHA and CHB pins (11,3)
+//      TCCR2A = 0xB3;                                  //-8 bit audio PWM
+//      TCCR2B = 0x01;                                  // |
+//      OCR2A = OCR2B = 127;                            //-+
+//      SET(DDRB, 3);				      //-PWM pin
+//      SET(DDRD, 3);				      //-PWM pin
+//      break;
 
-    case CHB:                                         //-Single ended signal on CHB pin (3)
-      TCCR2A = 0x23;                                  //-8 bit audio PWM
-      TCCR2B = 0x01;                                  // |
-      OCR2A = OCR2B = 127;                            //-+
-      SET(DDRD, 3);				      //-PWM pin
-      break;
+//    case CHB:                                         //-Single ended signal on CHB pin (3)
+//      TCCR2A = 0x23;                                  //-8 bit audio PWM
+//      TCCR2B = 0x01;                                  // |
+//      OCR2A = OCR2B = 127;                            //-+
+//      SET(DDRD, 3);				      //-PWM pin
+//      break;
 
     case CHA:
     default:
+
       output_mode=CHA;                                //-Single ended signal in CHA pin (11)
-      TCCR2A = 0x83;                                  //-8 bit audio PWM
-      TCCR2B = 0x01;                                  // |
-      OCR2A = OCR2B = 127;                            //-+
-      SET(DDRB, 3);				      //-PWM pin
+
+      //+PWM SOUND OUTPUT
+      TCCR0A |= (1<<WGM00)|(1<<WGM01); //Fast pwm
+      //TCCR0A |= (1<<WGM00) ; //Phase correct pwm
+      TCCR0A |= (1<<COM0A1); //Clear OC0A/OC0B on Compare Match when up-counting.
+      TCCR0B |= (1<<CS00);//no prescale
+      //+END PWM
+
+      OCR0A = 127;
+
+//      TCCR2A = 0x83;                                  //-8 bit audio PWM
+//      TCCR2B = 0x01;                                  // |
+//      OCR2A = OCR2B = 127;                            //-+
+
+      SET(DDRB, PB0);				      //-PWM pin
       break;
 
     }
@@ -337,11 +377,11 @@ public:
 
   void suspend()
   {
-    CLR(TIMSK1, OCIE1A);                            //-Stop audio interrupt
+    CLR(TIMSK, OCIE1A);                            //-Stop audio interrupt
   }
   void resume()
   {
-    SET(TIMSK1, OCIE1A);                            //-Start audio interrupt
+    SET(TIMSK, OCIE1A);                            //-Start audio interrupt
   }
 
 };
