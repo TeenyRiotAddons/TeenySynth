@@ -57,12 +57,25 @@ volatile unsigned char tik = 0;
 volatile unsigned char output_mode;
 
 
+volatile unsigned long millis_timer_millis = 0;
+uint8_t millis_subtimer = 0;
+
 //*********************************************************************************************
 //  Audio driver interrupt
 //*********************************************************************************************
 
 SIGNAL(TIMER1_COMPA_vect)
 {
+
+    unsigned long m = millis_timer_millis;
+
+    millis_subtimer++;
+    if (millis_subtimer > 19) {
+        millis_subtimer = 0;
+        m += 1;
+        millis_timer_millis = m;
+    }
+
   //-------------------------------
   // Time division
   //-------------------------------
@@ -112,6 +125,20 @@ public:
   //*********************************************************************
   //  Startup default
   //*********************************************************************
+  unsigned long millis()
+  {
+    unsigned long m;
+    //uint8_t oldSREG = SREG;
+
+    // disable interrupts while we read millis_timer_millis or we might get an
+    // inconsistent value (e.g. in the middle of a write to millis_timer_millis)
+    //cli();
+    m = millis_timer_millis;
+    //SREG = oldSREG;
+
+    return m;
+  }
+
 
   void begin()
   {
