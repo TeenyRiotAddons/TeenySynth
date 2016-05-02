@@ -63,6 +63,7 @@ uint8_t millis_subtimer = 0;
 //*********************************************************************************************
 //  Audio driver interrupt
 //*********************************************************************************************
+#ifdef __AVR_ATtinyX5__
 
 SIGNAL(TIMER1_COMPA_vect)
 {
@@ -112,6 +113,62 @@ SIGNAL(TIMER1_COMPA_vect)
     tim++;
 }
 
+#endif
+
+
+#ifdef ARDUINO_AVR_ATTINYX4
+
+
+SIGNAL(TIM0_COMPA_vect)
+{
+
+    unsigned long m = millis_timer_millis;
+
+    millis_subtimer++;
+    if (millis_subtimer > 19) {
+        millis_subtimer = 0;
+        m += 1;
+        millis_timer_millis = m;
+    }
+
+  //-------------------------------
+  // Time division
+  //-------------------------------
+  divider++;
+  if(!(divider&=0x03))
+    tik=1;
+
+  //-------------------------------
+  // Volume envelope generator
+  //-------------------------------
+
+  if (!(((unsigned char*)&EPCW[divider])[1]&0x80))
+    AMP[divider] = pgm_read_byte(envs[divider] + (((unsigned char*)&(EPCW[divider]+=EFTW[divider]))[1]));
+  else
+    AMP[divider] = 0;
+
+  //-------------------------------
+  //  Synthesizer/audio mixer
+  //-------------------------------
+
+  OCR1B = 127 +
+    ((
+  (((signed char)pgm_read_byte(wavs[0] + ((unsigned char *)&(PCW[0] += FTW[0]))[1]) * AMP[0]) >> 8) +
+    (((signed char)pgm_read_byte(wavs[1] + ((unsigned char *)&(PCW[1] += FTW[1]))[1]) * AMP[1]) >> 8) +
+    (((signed char)pgm_read_byte(wavs[2] + ((unsigned char *)&(PCW[2] += FTW[2]))[1]) * AMP[2]) >> 8) +
+    (((signed char)pgm_read_byte(wavs[3] + ((unsigned char *)&(PCW[3] += FTW[3]))[1]) * AMP[3]) >> 8)
+    ) >> 2);
+
+  //************************************************
+  //  Modulation engine
+  //************************************************
+  //  FTW[divider] = PITCH[divider] + (int)   (((PITCH[divider]/64)*(EPCW[divider]/64)) /128)*MOD[divider];
+  FTW[divider] = PITCH[divider] + (int)   (((PITCH[divider]>>6)*(EPCW[divider]>>6))/128)*MOD[divider];
+    tim++;
+}
+
+#endif
+
 class synth
 {
 private:
@@ -155,7 +212,7 @@ public:
 //    OCR2A = 127;                                    //-+
 //    SET(DDRB, 3);				    //-PWM pin
 
-
+#ifdef __AVR_ATtinyX5__
       TCCR1 |= _BV(CTC1); //clear timer on compare
       TIMSK |= _BV(OCIE1A); //activate compare interruppt
       TCNT1 = 0; //init count
@@ -172,7 +229,56 @@ public:
       //+END PWM
 
       OCR0A = 127;
-      SET(DDRB, PB0); //-PWM pin
+      SET(DDRB, PB0); //-PWM pin      
+#endif
+
+#ifdef ARDUINO_AVR_ATTINYX4
+
+      //Timer 1 pwm mpde
+      TCCR1A = 0;
+      TCCR1B = 0;
+      TCCR1C = 0;
+      TCCR1A |= (0b10 << COM1B0); //compare mode COM1B1, COM1B0
+      TCCR1A |= (0b01 << WGM10); //Waveform Generation Modes WGM11, WGM10
+      TCCR1B |= (0b01 << WGM12); //Waveform Generation Modes WGM13, WGM12
+      TCCR1B |= (0b001 << CS10); //Prescaler CS12, CS11, CS10
+      TCCR1B |= (0b11 << ICES1); //ICNC1, ICES1
+      OCR1B = 127; // set pwm middle
+      SET(DDRA, PA5); //-PWM pin
+
+      //Timer 0
+      TCCR0A = 0;
+      TCCR0B = 0;
+      //Table 11-2. Compare Output Mode, non-PWM Mode
+      TCCR0A |= (0b10 << COM0A0); //COM0A1, COM0A0 //Toggle OC0A on Compare Match
+      //Table 11-9. Clock Select Bit Description
+      //0b000 - No clock source (Timer/Counter stopped)
+      //0b001 - clkI/O/(No prescaling)
+      //0b010 - clkI/O/8 (From prescaler)
+      //0b011 - clkI/O/64 (From prescaler)
+      //0b100 - clkI/O/256 (From prescaler)
+      //0b101 - clkI/O/1024 (From prescaler)
+      //0b110 - External clock source on T0 pin. Clock on falling edge.
+      //0b111 - External clock source on T0 pin. Clock on rising edge.
+      TCCR0B |= (0b010 << CS00);
+      //Table 11-8. Waveform Generation Mode Bit Description
+      //0b000 - Normal
+      //0b001 - PWM, Phase Correct
+      //0b010 - CTC top OCRA
+      //0b011 - Fast PWM
+      //0b100 - Reserved
+      //0b101 - PWM, Phase Correct top OCRA
+      //0b110 - Reserved
+      //0b111 - Fast PWM top OCRA
+      TCCR0A |= (0b00 << WGM00); // WGM01, WGM00
+      TCCR0B |= (0b0 << WGM02); // WGM02
+      //OCR0A – Output Compare Register A
+      OCR0A = 49;
+      //11.9.6 TIMSK0 – Timer/Counter 0 Interrupt Mask Register
+      TIMSK0 |= (1 << OCIE0A); // Timer/Counter0 Output Compare Match A Interrupt Enable
+      sei();
+
+#endif
 
   }
 
@@ -187,6 +293,7 @@ public:
 //    TCCR1C = 0x00;
 //    OCR1A=CPU_CLOCK / FS;			    //-Auto sample rate
 
+#ifdef __AVR_ATtinyX5__
 
     TCCR1 |= _BV(CTC1); //clear timer on compare
     TIMSK |= _BV(OCIE1A); //activate compare interruppt
@@ -195,6 +302,8 @@ public:
     OCR1C = (CPU_CLOCK/16.0)/FS;
     SET(TIMSK, OCIE1A);                            //-Start audio interrupt
     sei();                                          //-+
+
+#endif
 
     output_mode=d;
 
@@ -220,6 +329,8 @@ public:
 
       output_mode=CHA;                                //-Single ended signal in CHA pin (11)
 
+      #ifdef __AVR_ATtinyX5__
+
       //+PWM SOUND OUTPUT
       TCCR0A |= (1<<WGM00)|(1<<WGM01); //Fast pwm
       //TCCR0A |= (1<<WGM00) ; //Phase correct pwm
@@ -234,6 +345,8 @@ public:
 //      OCR2A = OCR2B = 127;                            //-+
 
       SET(DDRB, PB0);				      //-PWM pin
+#endif
+
       break;
 
     }
@@ -404,11 +517,22 @@ public:
 
   void suspend()
   {
+#ifdef __AVR_ATtinyX5__
     CLR(TIMSK, OCIE1A);                            //-Stop audio interrupt
+#endif
+#ifdef __AVR_ATtinyX4__
+    CLR(TIMSK1, OCIE1A);                            //-Stop audio interrupt
+#endif
   }
   void resume()
   {
+#ifdef __AVR_ATtinyX5__
     SET(TIMSK, OCIE1A);                            //-Start audio interrupt
+#endif
+#ifdef __AVR_ATtinyX4__
+    SET(TIMSK1, OCIE1A);                            //-Start audio interrupt
+#endif
+
   }
 
 };
