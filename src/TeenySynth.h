@@ -264,13 +264,13 @@ SIGNAL(TIM0_COMPA_vect)
 
 #endif
 
-class synth
+class TeenySynth
 {
 private:
 
 public:
 
-  synth()
+  TeenySynth()
   {
   }
 
