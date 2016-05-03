@@ -120,25 +120,27 @@
 #define ENVELOPE2 2
 #define ENVELOPE3 3
 
-#define FS 20000.0  //-Sample rate (NOTE: must match tables.h)
-#define CPU_CLOCK 16500000.0
-
 #define SET(x,y) (x |=(1<<y))		        		//-Bit set/clear macros
 #define CLR(x,y) (x &= (~(1<<y)))       			// |
 #define CHK(x,y) (x & (1<<y))           			// |
 #define TOG(x,y) (x^=(1<<y))            			//-+
+
+#define FS 20000.0  //-Sample rate (NOTE: must match tables.h)
 
 
 #if defined(__AVR_ATtiny84__)
 #define SOUND_OUT_PORT OCR1B
 #define SOUND_OUT_INTERRUPT TIM0_COMPA_vect
 #define VOL_UP 0//fix low volume on attiny84
+#define TMR_PRESCALE 8.0
+
 #endif
 
 #if defined(__AVR_ATtiny85__)
 #define SOUND_OUT_PORT OCR0A
 #define SOUND_OUT_INTERRUPT TIMER1_COMPA_vect
 #define VOL_UP 0
+#define TMR_PRESCALE 16.0
 #endif
 
 
@@ -237,11 +239,12 @@ SIGNAL(SOUND_OUT_INTERRUPT)
 class TeenySynth
 {
 private:
-
+    uint8_t default_clock;
 public:
 
     TeenySynth()
     {
+        default_clock = (F_CPU/TMR_PRESCALE)/FS;
     }
 
     //*********************************************************************
@@ -249,16 +252,16 @@ public:
     //*********************************************************************
     unsigned long millis()
     {
-        unsigned long m;
+        //unsigned long m;
         //uint8_t oldSREG = SREG;
 
         // disable interrupts while we read millis_timer_millis or we might get an
         // inconsistent value (e.g. in the middle of a write to millis_timer_millis)
         //cli();
-        m = millis_timer_millis;
+        //m = millis_timer_millis;
         //SREG = oldSREG;
 
-        return m;
+        return millis_timer_millis;
     }
 
 
@@ -308,10 +311,10 @@ public:
         //0b101 - PWM, Phase Correct top OCRA
         //0b110 - Reserved
         //0b111 - Fast PWM top OCRA
-        TCCR0A |= (0b00 << WGM00); // WGM01, WGM00
+        TCCR0A |= (0b10 << WGM00); // WGM01, WGM00
         TCCR0B |= (0b0 << WGM02); // WGM02
         //OCR0A – Output Compare Register A
-        OCR0A = (CPU_CLOCK/16.0)/FS;
+        OCR0A = (F_CPU/TMR_PRESCALE)/FS;
         //11.9.6 TIMSK0 – Timer/Counter 0 Interrupt Mask Register
         TIMSK0 |= (1 << OCIE0A); // Timer/Counter0 Output Compare Match A Interrupt Enable
         sei();
@@ -324,7 +327,7 @@ public:
         TIMSK |= _BV(OCIE1A); //activate compare interruppt
         TCNT1 = 0; //init count
         TCCR1 |= _BV(CS10)|_BV(CS12); // prescale 16
-        OCR1C = (CPU_CLOCK/16.0)/FS;
+        OCR1C = (CPU_CLOCK/TMR_PRESCALE)/FS;
         SET(TIMSK, OCIE1A);                            //-Start audio interrupt
         sei();                                          //-+
 
@@ -445,6 +448,27 @@ public:
                 break;
 
             }
+    }
+
+    void bendTimer(uint8_t clock)
+    {
+#if defined(__AVR_ATtiny84__)
+        OCR0A = clock;
+#endif
+#if defined(__AVR_ATtiny85__)
+        OCR1C = clock;
+#endif
+    }
+
+
+    void resetTimer()
+    {
+#if defined(__AVR_ATtiny84__)
+        OCR0A = default_clock;
+#endif
+#if defined(__AVR_ATtiny85__)
+        OCR1C = default_clock;
+#endif
     }
 
     //*********************************************************************
