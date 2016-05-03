@@ -104,8 +104,6 @@
 #define NOTE_D8  87
 #define NOTE_DS8 88
 
-
-
 #define DIFF 1
 #define CHA 2
 #define CHB 3
@@ -122,13 +120,24 @@
 #define ENVELOPE2 2
 #define ENVELOPE3 3
 
-#define FS 20000.0                                              //-Sample rate (NOTE: must match tables.h)
+#define FS 20000.0  //-Sample rate (NOTE: must match tables.h)
 #define CPU_CLOCK 16500000.0
 
 #define SET(x,y) (x |=(1<<y))		        		//-Bit set/clear macros
 #define CLR(x,y) (x &= (~(1<<y)))       			// |
 #define CHK(x,y) (x & (1<<y))           			// |
 #define TOG(x,y) (x^=(1<<y))            			//-+
+
+
+#ifdef ARDUINO_AVR_TEENYRIOT
+#define SOUND_OUT_PORT OCR0A
+#define SOUND_OUT_INTERRUPT TIMER1_COMPA_vect
+#endif
+
+#ifdef ARDUINO_AVR_ATTINYX4
+#define SOUND_OUT_PORT OCR1B
+#define SOUND_OUT_INTERRUPT TIM0_COMPA_vect
+#endif
 
 volatile unsigned int PCW[4] = {
   0, 0, 0, 0};			//-Wave phase accumolators
@@ -158,9 +167,8 @@ uint8_t millis_subtimer = 0;
 //*********************************************************************************************
 //  Audio driver interrupt
 //*********************************************************************************************
-#ifdef __AVR_ATtinyX5__
 
-SIGNAL(TIMER1_COMPA_vect)
+SIGNAL(SOUND_OUT_INTERRUPT)
 {
 
     unsigned long m = millis_timer_millis;
@@ -192,7 +200,7 @@ SIGNAL(TIMER1_COMPA_vect)
   //  Synthesizer/audio mixer
   //-------------------------------
 
-  OCR0A = 127 +
+  SOUND_OUT_PORT = 127 +
     ((
   (((signed char)pgm_read_byte(wavs[0] + ((unsigned char *)&(PCW[0] += FTW[0]))[1]) * AMP[0]) >> 8) +
     (((signed char)pgm_read_byte(wavs[1] + ((unsigned char *)&(PCW[1] += FTW[1]))[1]) * AMP[1]) >> 8) +
@@ -207,62 +215,6 @@ SIGNAL(TIMER1_COMPA_vect)
   FTW[divider] = PITCH[divider] + (int)   (((PITCH[divider]>>6)*(EPCW[divider]>>6))/128)*MOD[divider];
     tim++;
 }
-
-#endif
-
-
-#ifdef ARDUINO_AVR_ATTINYX4
-
-
-SIGNAL(TIM0_COMPA_vect)
-{
-
-    unsigned long m = millis_timer_millis;
-
-    millis_subtimer++;
-    if (millis_subtimer > 19) {
-        millis_subtimer = 0;
-        m += 1;
-        millis_timer_millis = m;
-    }
-
-  //-------------------------------
-  // Time division
-  //-------------------------------
-  divider++;
-  if(!(divider&=0x03))
-    tik=1;
-
-  //-------------------------------
-  // Volume envelope generator
-  //-------------------------------
-
-  if (!(((unsigned char*)&EPCW[divider])[1]&0x80))
-    AMP[divider] = pgm_read_byte(envs[divider] + (((unsigned char*)&(EPCW[divider]+=EFTW[divider]))[1]));
-  else
-    AMP[divider] = 0;
-
-  //-------------------------------
-  //  Synthesizer/audio mixer
-  //-------------------------------
-
-  OCR1B = 127 +
-    ((
-  (((signed char)pgm_read_byte(wavs[0] + ((unsigned char *)&(PCW[0] += FTW[0]))[1]) * AMP[0]) >> 8) +
-    (((signed char)pgm_read_byte(wavs[1] + ((unsigned char *)&(PCW[1] += FTW[1]))[1]) * AMP[1]) >> 8) +
-    (((signed char)pgm_read_byte(wavs[2] + ((unsigned char *)&(PCW[2] += FTW[2]))[1]) * AMP[2]) >> 8) +
-    (((signed char)pgm_read_byte(wavs[3] + ((unsigned char *)&(PCW[3] += FTW[3]))[1]) * AMP[3]) >> 8)
-    ) >> 2);
-
-  //************************************************
-  //  Modulation engine
-  //************************************************
-  //  FTW[divider] = PITCH[divider] + (int)   (((PITCH[divider]/64)*(EPCW[divider]/64)) /128)*MOD[divider];
-  FTW[divider] = PITCH[divider] + (int)   (((PITCH[divider]>>6)*(EPCW[divider]>>6))/128)*MOD[divider];
-    tim++;
-}
-
-#endif
 
 class TeenySynth
 {
@@ -307,7 +259,7 @@ public:
 //    OCR2A = 127;                                    //-+
 //    SET(DDRB, 3);				    //-PWM pin
 
-#ifdef __AVR_ATtinyX5__
+#ifdef ARDUINO_AVR_TEENYRIOT
       TCCR1 |= _BV(CTC1); //clear timer on compare
       TIMSK |= _BV(OCIE1A); //activate compare interruppt
       TCNT1 = 0; //init count
@@ -368,7 +320,7 @@ public:
       TCCR0A |= (0b00 << WGM00); // WGM01, WGM00
       TCCR0B |= (0b0 << WGM02); // WGM02
       //OCR0A – Output Compare Register A
-      OCR0A = 49;
+      OCR0A = 10;
       //11.9.6 TIMSK0 – Timer/Counter 0 Interrupt Mask Register
       TIMSK0 |= (1 << OCIE0A); // Timer/Counter0 Output Compare Match A Interrupt Enable
       sei();
