@@ -8,30 +8,36 @@
 //                 === 10nF
 //                  |
 //                 GND
+// DZL 2014
+// HTTP://dzlsevilgeniuslair.blogspot.dk
+// HTTP://illutron.dk
+// Modified by manticore to support attiny85/84
+// part of cocomaketinyriot
 
 
-#include <synth.h>
+#include <TeenySynth.h>
+#include <util/delay.h>
 
-synth edgar;    //-Make a synth
+TeenySynth synth;    //-Make a synth
 
 void setup() {
 
-  edgar.begin();                                   //-Start it up
-  edgar.setupVoice(0,TRIANGLE,60,ENVELOPE1,127,64);  //-Set up voice 0
+  synth.begin();                                   //-Start it up
+  synth.setupVoice(0,TRIANGLE,60,ENVELOPE1,127,64);  //-Set up voice 0
 }
 
 void loop()
 {
-  edgar.setFrequency(0,50.0);
-  edgar.trigger(0);
-  delay(1000);
-  edgar.setFrequency(0,60.0);
-  edgar.trigger(0);
-  delay(1000);
-  edgar.setFrequency(0,440.0);
-  edgar.trigger(0);
-  delay(1000);
-  edgar.setFrequency(0,1000.0);
-  edgar.trigger(0);
-  delay(1000);
+  synth.setFrequency(0,50.0);
+  synth.trigger(0);
+  _delay_ms(1000);
+  synth.setFrequency(0,60.0);
+  synth.trigger(0);
+  _delay_ms(1000);
+  synth.setFrequency(0,440.0);
+  synth.trigger(0);
+  _delay_ms(1000);
+  synth.setFrequency(0,1000.0);
+  synth.trigger(0);
+  _delay_ms(1000);
 }

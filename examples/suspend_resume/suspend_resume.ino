@@ -49,35 +49,35 @@
 
 
 
-#include "synth.h"
-synth edgar;
+#include "TeenySynth.h"
+TeenySynth synth;
 
 void setup() {
 
   //Uncomment desired:
   
-  edgar.begin();        //Default OUTA
+  synth.begin();        //Default OUTA
   //edgar.begin(CHA);     //CHA (same as default)
   //edgar.begin(CHB);     //CHB
   //edgar.begin(DIFF);    //Differential
   
   //  Set up the voices
-  edgar.setupVoice(0,SINE,60,ENVELOPE0,90,64);
-  edgar.setupVoice(1,SINE,62,ENVELOPE1,90,64);
-  edgar.setupVoice(2,SINE,64,ENVELOPE2,90,64);
-  edgar.setupVoice(3,SINE,67,ENVELOPE0,90,64);
+  synth.setupVoice(0,SINE,60,ENVELOPE0,90,64);
+  synth.setupVoice(1,SINE,62,ENVELOPE1,90,64);
+  synth.setupVoice(2,SINE,64,ENVELOPE2,90,64);
+  synth.setupVoice(3,SINE,67,ENVELOPE0,90,64);
 
 
-  edgar.begin();    //-Default OUTA
+  synth.begin();    //-Default OUTA
   //-Play a little gong
-  edgar.trigger(0);
-  delay(1000);
-  edgar.trigger(1);
-  delay(1000);
-  edgar.trigger(2);
-  delay(1000);
-  edgar.trigger(3);
-  delay(1000);
+  synth.trigger(0);
+  _delay_ms(1000);
+  synth.trigger(1);
+  _delay_ms(1000);
+  synth.trigger(2);
+  _delay_ms(1000);
+  synth.trigger(3);
+  _delay_ms(1000);
 
 
 }

@@ -1,65 +1,44 @@
-//Example based on this demo:
-//https://github.com/electricmango/Arduino-Music-Project.git
-//
+#include <TeenySynth.h>
+#include <util/delay.h>
+#include <Arduino.h>
 
-//Hardware connections:
+TeenySynth synth;    //-Make a synth
 
-//                    +10µF 
-//PIN 11 ---[ 1k ]--+---||--->> Audio out
-//                  |
-//                 === 10nF
-//                  |
-//                 GND
 
-// DZL 2014
-// HTTP://dzlsevilgeniuslair.blogspot.dk
-// HTTP://illutron.dk
+int melody[] = {
+    NOTE_D4, 0, NOTE_F4, NOTE_D4, 0, NOTE_D4, NOTE_G4, NOTE_D4, NOTE_C4,
+    NOTE_D4, 0, NOTE_A4, NOTE_D4, 0, NOTE_D4, NOTE_AS4, NOTE_A4, NOTE_F4,
+    NOTE_D4, NOTE_A4, NOTE_D5, NOTE_D4, NOTE_C4, 0, NOTE_C4, NOTE_A3, NOTE_E4, NOTE_D4,
+    0
+};
 
-#include <synth.h>
-#include "notes.h"
-#include "song.h"
 
-synth edgar;
+static uint16_t toSecondsCounter  = 0;
+static uint16_t timeCalibrationCounter  = 0;
+unsigned long lastTime = 0;            // variable to store the last time we sent a chord
 
-void setup() 
+void setup()
 {
-  Serial.begin(19200);
-  edgar.begin(DIFF);
-
-  edgar.setupVoice(0,SINE,60,ENVELOPE0,80,64);
-  edgar.setupVoice(1,SINE,62,ENVELOPE0,100,64);
-  edgar.setupVoice(2,SINE,64,ENVELOPE2,110,64);
-  edgar.setupVoice(3,SINE,67,ENVELOPE0,110,64);
-
-
-  for (int thisNote = 0; thisNote < 1000; thisNote++) {
-
-    /*
-    to calculate the note duration, take one second divided by the note type.
-     e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-     */
-    int noteDuration = 800/noteDurations[thisNote];
-    //    tone(8, melody[thisNote],noteDuration);
-
-    if(melody[thisNote]<=NOTE_E4)
-      edgar.mTrigger(1,melody[thisNote]+32);
-    else
-      edgar.mTrigger(0,melody[thisNote]+32);
-    delay(noteDuration);
-
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
-    int pauseBetweenNotes = noteDuration * 1.30;
-    delay(pauseBetweenNotes);
-    // stop the tone playing:
-    noTone(8);
-  }
-
-}
-
-void loop() 
-{
-
+    synth.begin();
+    synth.setupVoice(0,NOISE,60,ENVELOPE1,80,64);
+    synth.setupVoice(1,SQUARE,62,ENVELOPE0,100,64);
+    synth.setupVoice(2,NOISE,64,ENVELOPE2,110,64);
+    synth.setupVoice(3,SQUARE,67,ENVELOPE0,110,64);
 }
 
 
+void loop()
+{
+
+    unsigned long m = synth.millis();
+
+    if (m-lastTime >= 100 ){
+           lastTime = synth.millis(); // cant use millis from arduino - iox
+           synth.mTrigger(0,melody[timeCalibrationCounter]+20);
+           //_delay_ms(5);
+           lastTime = synth.millis();
+           timeCalibrationCounter++;
+           if (timeCalibrationCounter>28) timeCalibrationCounter = 0;
+    }
+
+}
