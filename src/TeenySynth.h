@@ -143,6 +143,10 @@
 #define TMR_PRESCALE 16.0
 #endif
 
+#ifdef F_CPU
+#define CPU_CLOCK F_CPU
+#endif
+
 
 volatile unsigned int PCW[4] =
 {
@@ -317,7 +321,6 @@ public:
         OCR0A = (F_CPU/TMR_PRESCALE)/FS;
         //11.9.6 TIMSK0 – Timer/Counter 0 Interrupt Mask Register
         TIMSK0 |= (1 << OCIE0A); // Timer/Counter0 Output Compare Match A Interrupt Enable
-        sei();
 
 #endif
 
@@ -329,7 +332,6 @@ public:
         TCCR1 |= _BV(CS10)|_BV(CS12); // prescale 16
         OCR1C = (CPU_CLOCK/TMR_PRESCALE)/FS;
         SET(TIMSK, OCIE1A);                            //-Start audio interrupt
-        sei();                                          //-+
 
         //+PWM SETUP
         TCCR0A |= (1<<WGM00)|(1<<WGM01); //Fast pwm
@@ -341,6 +343,8 @@ public:
         OCR0A = 127;
         SET(DDRB, PB0); //-PWM pin
 #endif
+
+        sei();
 
     }
 
