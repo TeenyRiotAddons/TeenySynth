@@ -16,21 +16,18 @@
 // part of cocomaketinyriot
 
 #include <TeenySynth.h>
+#include <util/delay.h>
 
 TeenySynth synth;    //-Make as synth
 
-long t = 0; 
-int v = 0; 
- 
 void setup()
 {
 
   synth.begin();  //-Start it up
   //Set up a voice:
   //setupVoice( voice[0-3] , waveform[SINE,TRIANGLE,SQUARE,SAW,RAMP,NOISE] , pitch[0-127], envelope[ENVELOPE0-ENVELOPE3], length[0-127], mod[0-127, 64=no mod])
-  synth.setupVoice(0,SQUARE,90,ENVELOPE0,80,64);
+  synth.setupVoice(0,SINE,90,ENVELOPE0,80,64);
 }
-
 
 
 void loop()
@@ -39,13 +36,13 @@ void loop()
   {
       synth.setMod(0,i);
       synth.trigger(0);
-     _delay_ms(1000);
+     _delay_ms(100);
   }
 }
 
 int main(void)
 {
-  //init();
+  //init(); //for attiny85 teenyriot
     setup();
     for (;;)
         loop();
