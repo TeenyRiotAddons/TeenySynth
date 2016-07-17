@@ -246,14 +246,15 @@ private:
     uint8_t default_clock;
 public:
 
+    //*********************************************************************
+    //  Startup default
+    //*********************************************************************
+
     TeenySynth()
     {
         default_clock = (F_CPU/TMR_PRESCALE)/FS;
     }
 
-    //*********************************************************************
-    //  Startup default
-    //*********************************************************************
     unsigned long millis()
     {
         //unsigned long m;
@@ -266,6 +267,17 @@ public:
         //SREG = oldSREG;
 
         return millis_timer_millis;
+    }
+
+
+    // delay while updating until we are finished delaying
+    void delay(long milli) {
+        unsigned long last = millis();
+      while (milli > 0) {
+        unsigned long now = millis();
+        milli -= now - last;
+        last = now;
+      }
     }
 
 
